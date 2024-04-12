@@ -2,7 +2,7 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const mime = require('mime-types'); // Ensure to install mime-types package using npm
+const { FixedLengthStream } = require('stream');
 
 // Config
 const PORT = process.env.PORT || 8080;
@@ -111,13 +111,15 @@ const handler = (req, res) => {
             });
         } else {
             const filename = path.basename(filepath);
+            const fileSize = stats.size;
 
             res.writeHead(200, {
                 'Content-Type': 'application/octet-stream',
-                'Content-Length': stats.size,
                 'Content-Disposition': `attachment; filename="${filename}"`,
-                'X-File-Size': stats.size
+                'X-File-Size': fileSize
             });
+
+            const { readable, writable } = new FixedLengthStream(fileSize);
 
             const readStream = fs.createReadStream(filepath);
 
@@ -129,9 +131,10 @@ const handler = (req, res) => {
                 if (LOGGING) console.log("Error reading file:", error);
             });
 
-            readStream.pipe(res);
+            readStream.pipe(writable);
+            readable.pipe(res);
 
-            readStream.on('close', () => {
+            readable.on('close', () => {
                 res.end();
                 if (LOGGING) console.log("Returned file successfully.");
             });
