@@ -2,6 +2,7 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const mime = require('mime-types'); // Ensure to install mime-types package using npm
 
 // Config
 const PORT = process.env.PORT || 8080;
@@ -20,9 +21,7 @@ console.log(`Setting Directory Listing: ${LISTDIRS ? "on" : "off"}.`);
 const directories = { directories: {} };
 
 for (let str of FOLDERS) {
-    let split = str.split(":");
-    let full_url = split[0]
-    let full_path = split[1];
+    let [full_url, full_path] = str.split(":");
 
     if (!full_url.match(/([a-zA-Z\-_0-9\/\.]+)/)) {
         console.error(`Invalid url path ${full_url}`);
@@ -47,13 +46,13 @@ for (let str of FOLDERS) {
 }
 
 // Error Handler
-const error = (req, res, code, err) => {
+const error = (req, res, code, message) => {
     res.writeHead(code, { 'Content-Type': 'text/plain' });
-    res.end(`Error ${code}: ${err || 'Not found'}`);
+    res.end(`Error ${code}: ${message}`);
 
     if (LOGGING) {
-        console.log(`Returned Code ${code}`);
-        if (err) console.log("Reason:", err);
+        console.log(`Returned Code ${code} for ${req.url}`);
+        console.log("Reason:", message);
     }
 };
 
@@ -83,45 +82,53 @@ const handler = (req, res) => {
         parts = found.parts;
     }
 
-    if (!directory || !directory.path) return error(req, res, 404);
+    if (!directory || !directory.path) return error(req, res, 404, "Resource not found");
 
     let userpath = path.join(...location, ...parts);
     let filepath = path.join(directory.path, ...parts);
 
     if (LOGGING) console.log("Resolved Location:", filepath);
 
-    fs.lstat(filepath, (err, stat) => {
-        if (err) return error(req, res, 401, err.message);
+    fs.stat(filepath, (err, stats) => {
+        if (err) {
+            return error(req, res, err.code === 'ENOENT' ? 404 : 500, "File not accessible");
+        }
 
-        if (stat.isFile()) {
-            fs.readFile(filepath, (err, data) => {
-                if (err) return error(req, res, err.code === 'ENOENT' ? 404 : 401, err.message);
-
-                res.writeHead(200, {
-                    'Content-Type': 'application/octet-stream', // This should ideally be based on the file type
-                    'Content-Length': stat.size
-                });
-                res.end(data);
-
-                if (LOGGING) console.log("Returned File.");
-            });
-        } else if (stat.isDirectory()) {
-            if (!LISTDIRS) return error(req, res, 403, "Listing disabled.");
+        if (stats.isDirectory()) {
+            if (!LISTDIRS) return error(req, res, 403, "Directory listing is disabled.");
 
             fs.readdir(filepath, (err, files) => {
-                if (err) return error(req, res, 401, err.message);
+                if (err) return error(req, res, 500, "Directory read error");
 
-                const content = files.map(file => `<a href="/${path.join(userpath, file)}">${file}</a>`).join('<br>');
+                const content = `Directory: ${userpath}<br>` + files.map(file => `<a href="/${path.join(userpath, file)}">${file}</a>`).join('<br>');
                 res.writeHead(200, {
                     'Content-Type': 'text/html',
                     'Content-Length': Buffer.byteLength(content)
                 });
-                res.end(`Directory: ${userpath}<br>${content}`);
+                res.end(content);
 
-                if (LOGGING) console.log("Returned Directory.");
+                if (LOGGING) console.log("Returned directory listing.");
             });
         } else {
-            return error(req, res, 404, "Location not found.");
+            const contentType = mime.lookup(filepath) || 'application/octet-stream';
+
+            res.writeHead(200, {
+                'Content-Type': contentType,
+                'Content-Length': stats.size
+            });
+            const readStream = fs.createReadStream(filepath);
+            readStream.pipe(res);
+
+            readStream.on('error', error => {
+                res.writeHead(500);
+                res.end(`Server error: ${error}`);
+                if (LOGGING) console.log("Error reading file.");
+            });
+
+            readStream.on('end', () => {
+                res.end();
+                if (LOGGING) console.log("Returned file successfully.");
+            });
         }
     });
 };
@@ -129,5 +136,5 @@ const handler = (req, res) => {
 // Create HTTP server.
 console.log(`Starting HTTP server on port ${PORT}`);
 http.createServer(handler).listen(PORT, () => {
-    console.log(`HTTP server started.`);
+    console.log(`HTTP server started on port ${PORT}.`);
 });

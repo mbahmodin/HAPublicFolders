@@ -1,17 +1,23 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Install node js
-RUN \
-  apk add --no-cache \
-    nodejs npm
+# Install node js and npm
+RUN apk add --no-cache nodejs npm
 
-#Copy node file
-COPY package.json /
-COPY index.js /
+# Set working directory
+WORKDIR /
 
-# Copy run file
-COPY run.sh /
+# Copy package.json
+COPY package.json ./
+
+# Install npm dependencies
+RUN npm install
+
+# Copy node file and run script
+COPY index.js ./
+COPY run.sh ./
+
+# Make the run script executable
 RUN chmod a+x /run.sh
 
 CMD [ "/run.sh" ]
