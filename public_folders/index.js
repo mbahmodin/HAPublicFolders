@@ -110,22 +110,28 @@ const handler = (req, res) => {
                 if (LOGGING) console.log("Returned directory listing.");
             });
         } else {
-            const contentType = mime.lookup(filepath) || 'application/octet-stream';
+            const filename = path.basename(filepath);
 
             res.writeHead(200, {
-                'Content-Type': contentType,
-                'Content-Length': stats.size
+                'Content-Type': 'application/octet-stream',
+                'Content-Length': stats.size,
+                'Content-Disposition': `attachment; filename="${filename}"`,
+                'X-File-Size': stats.size
             });
+
             const readStream = fs.createReadStream(filepath);
-            readStream.pipe(res);
 
             readStream.on('error', error => {
-                res.writeHead(500);
+                res.writeHead(500, {
+                    'Content-Type': 'text/plain'
+                });
                 res.end(`Server error: ${error}`);
-                if (LOGGING) console.log("Error reading file.");
+                if (LOGGING) console.log("Error reading file:", error);
             });
 
-            readStream.on('end', () => {
+            readStream.pipe(res);
+
+            readStream.on('close', () => {
                 res.end();
                 if (LOGGING) console.log("Returned file successfully.");
             });
