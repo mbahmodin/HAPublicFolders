@@ -17,6 +17,24 @@ const folderMappings = FOLDERS.split(',').reduce((mappings, folder) => {
   return mappings;
 }, {});
 
+// Content-Type mappings
+const contentTypes = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.ogg': 'video/ogg',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.js': 'application/javascript'
+};
+
 // Error handler
 const handleError = (res, statusCode, message) => {
   res.writeHead(statusCode, { 'Content-Type': 'text/plain' });
@@ -55,11 +73,17 @@ const serveFile = (res, filePath) => {
         res.end(content);
       });
     } else {
+      const fileName = path.basename(filePath);
+      const fileExt = path.extname(fileName).toLowerCase();
+
+      const contentType = contentTypes[fileExt] || 'application/octet-stream';
+
       const fileStream = fs.createReadStream(filePath);
       fileStream.on('error', () => handleError(res, 500, 'File read error'));
       res.writeHead(200, {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': stats.size
+        'Content-Type': contentType,
+        'Content-Length': stats.size,
+        'Content-Disposition': `inline; filename="${fileName}"`
       });
       fileStream.pipe(res);
     }
