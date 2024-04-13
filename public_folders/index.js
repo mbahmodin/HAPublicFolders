@@ -45,7 +45,7 @@ const handleError = (res, statusCode, message) => {
 };
 
 // File serving handler
-const serveFile = (res, filePath) => {
+const serveFile = (res, filePath, fileExt) => {
   fs.stat(filePath, (err, stats) => {
     if (err) {
       handleError(res, err.code === 'ENOENT' ? 404 : 500, 'File not found');
@@ -74,8 +74,6 @@ const serveFile = (res, filePath) => {
       });
     } else {
       const fileName = path.basename(filePath);
-      const fileExt = path.extname(fileName).toLowerCase();
-
       const contentType = contentTypes[fileExt] || 'application/octet-stream';
 
       const fileStream = fs.createReadStream(filePath);
@@ -113,7 +111,8 @@ const handleRequest = (req, res) => {
   }
 
   const filePath = path.join(directory, ...pathSegments.slice(1));
-  serveFile(res, filePath);
+  const fileExt = path.extname(parsedUrl.pathname).toLowerCase();
+  serveFile(res, filePath, fileExt);
 };
 
 // Create HTTP server
