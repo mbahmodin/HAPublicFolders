@@ -48,13 +48,19 @@ const serveFile = (res, filePath) => {
 
         const fileList = files.map(file => `<a href="${path.join(filePath, file)}">${file}</a>`).join('<br>');
         const content = `<html><body><h1>Directory Listing:</h1>${fileList}</body></html>`;
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, {
+          'Content-Type': 'text/html',
+          'Content-Length': Buffer.byteLength(content)
+        });
         res.end(content);
       });
     } else {
       const fileStream = fs.createReadStream(filePath);
       fileStream.on('error', () => handleError(res, 500, 'File read error'));
-      res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': stats.size
+      });
       fileStream.pipe(res);
     }
   });
