@@ -17,24 +17,6 @@ const folderMappings = FOLDERS.split(',').reduce((mappings, folder) => {
   return mappings;
 }, {});
 
-// Content-Type mappings
-const contentTypes = {
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.ogg': 'video/ogg',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.pdf': 'application/pdf',
-  '.txt': 'text/plain',
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'application/javascript'
-};
-
 // Error handler
 const handleError = (res, statusCode, message) => {
   res.writeHead(statusCode, { 'Content-Type': 'text/plain' });
@@ -45,7 +27,7 @@ const handleError = (res, statusCode, message) => {
 };
 
 // File serving handler
-const serveFile = (res, filePath, fileExt) => {
+const serveFile = (res, filePath) => {
   fs.stat(filePath, (err, stats) => {
     if (err) {
       handleError(res, err.code === 'ENOENT' ? 404 : 500, 'File not found');
@@ -74,14 +56,14 @@ const serveFile = (res, filePath, fileExt) => {
       });
     } else {
       const fileName = path.basename(filePath);
-      const contentType = contentTypes[fileExt] || 'application/octet-stream';
+      const contentType = 'video/mp4';
 
       const fileStream = fs.createReadStream(filePath);
       fileStream.on('error', () => handleError(res, 500, 'File read error'));
       res.writeHead(200, {
         'Content-Type': contentType,
         'Content-Length': stats.size,
-        'Content-Disposition': `inline; filename="${fileName}"`
+        'Content-Disposition': `inline; filename=${fileName}`
       });
       fileStream.pipe(res);
     }
@@ -111,8 +93,7 @@ const handleRequest = (req, res) => {
   }
 
   const filePath = path.join(directory, ...pathSegments.slice(1));
-  const fileExt = path.extname(parsedUrl.pathname).toLowerCase();
-  serveFile(res, filePath, fileExt);
+  serveFile(res, filePath);
 };
 
 // Create HTTP server
