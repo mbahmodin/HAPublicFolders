@@ -2,7 +2,7 @@
   "init": false,
   "slug": "public_folders",
   "name": "Public Folders",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Server files on http.",
   "arch":
   [
@@ -20,11 +20,11 @@
   ],
   "ports":
   {
-    "8080/tcp": 8080
+    "8443/tcp": 8443
   },
   "ports_description":
   {
-    "8080/tcp": "Port to serve files on."
+    "8443/tcp": "Port to serve files on."
   },
   "options":
   {
